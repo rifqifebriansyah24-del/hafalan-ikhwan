@@ -138,7 +138,22 @@
   .field input:focus, .field select:focus, .field textarea:focus {
     outline: 2px solid var(--accent); outline-offset: 1px;
   }
+  .select-shell { position: relative; }
+  .select-shell select {
+    appearance: none; -webkit-appearance: none; -moz-appearance: none;
+    padding-right: 34px;
+  }
+  .select-shell::after {
+    content: ""; position: absolute; right: 13px; top: 50%; margin-top: 1px;
+    width: 10px; height: 6px; transform: translateY(-50%);
+    background: var(--muted); pointer-events: none;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='black' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='black' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;
+  }
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 480px) {
+    .row2 { grid-template-columns: 1fr; }
+  }
   .checkline { display: flex; align-items: center; gap: 8px; font-size: .85rem; color: var(--ink); margin-bottom: 14px; }
   .checkline input { width: 16px; height: 16px; }
 
@@ -238,9 +253,16 @@
     <div class="hint">Untuk musyrif &mdash; isi setelah menyimak satu peserta.</div>
     <form id="hafalan-form">
       <div class="field">
-        <label for="input-nama">Nama peserta</label>
-        <input id="input-nama" name="nama" list="peserta-list" placeholder="Ketik atau pilih nama" required autocomplete="off">
-        <datalist id="peserta-list"></datalist>
+        <label for="input-nama-select">Nama peserta</label>
+        <div class="select-shell">
+          <select id="input-nama-select" required>
+            <option value="">Pilih nama&hellip;</option>
+          </select>
+        </div>
+      </div>
+      <div class="field" id="input-nama-baru-field" hidden>
+        <label for="input-nama-baru">Nama peserta baru</label>
+        <input id="input-nama-baru" placeholder="Tulis nama lengkap">
       </div>
       <div class="row2">
         <div class="field">
@@ -249,11 +271,13 @@
         </div>
         <div class="field">
           <label for="input-jenis">Jenis</label>
-          <select id="input-jenis" name="jenis">
-            <option value="baru">Hafalan baru</option>
-            <option value="tes">Tes</option>
-            <option value="murajaah">Murajaah</option>
-          </select>
+          <div class="select-shell">
+            <select id="input-jenis" name="jenis">
+              <option value="baru">Hafalan baru</option>
+              <option value="tes">Tes</option>
+              <option value="murajaah">Murajaah</option>
+            </select>
+          </div>
         </div>
       </div>
       <div class="row2">
@@ -273,10 +297,12 @@
       <div class="row2">
         <div class="field">
           <label for="input-status">Kehadiran</label>
-          <select id="input-status" name="attendance">
-            <option value="hadir">Hadir</option>
-            <option value="izin">Izin</option>
-          </select>
+          <div class="select-shell">
+            <select id="input-status" name="attendance">
+              <option value="hadir">Hadir</option>
+              <option value="izin">Izin</option>
+            </select>
+          </div>
         </div>
         <div class="field">
           <label for="input-musyrif">Dicatat oleh</label>
@@ -319,9 +345,11 @@
     <div class="hint" id="progress-hint">Untuk peserta &mdash; pilih nama untuk melihat riwayat hafalan.</div>
     <div class="field" id="progress-picker-field">
       <label for="progress-picker">Nama saya</label>
-      <select id="progress-picker">
-        <option value="">Pilih nama&hellip;</option>
-      </select>
+      <div class="select-shell">
+        <select id="progress-picker">
+          <option value="">Pilih nama&hellip;</option>
+        </select>
+      </div>
     </div>
     <div id="progress-locked-name" hidden></div>
     <div class="share-row" id="progress-share" hidden>
@@ -597,18 +625,29 @@
     });
   }
 
-  // ---------- datalist for input tab ----------
-  function renderPesertaDatalist() {
-    var dl = document.getElementById("peserta-list");
-    dl.innerHTML = Object.keys(pesertaMap)
-      .sort(function (a, b) { return pesertaMap[a].name.localeCompare(pesertaMap[b].name); })
-      .map(function (id) { return '<option value="' + escapeHtml(pesertaMap[id].name) + '">'; })
-      .join("");
+  // ---------- name select for input tab ----------
+  function renderPesertaSelect() {
+    var sel = document.getElementById("input-nama-select");
+    var current = sel.value;
+    var names = Object.keys(pesertaMap)
+      .map(function (id) { return pesertaMap[id].name; })
+      .sort(function (a, b) { return a.localeCompare(b); });
+    sel.innerHTML = '<option value="">Pilih nama&hellip;</option>' +
+      names.map(function (n) { return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>'; }).join("") +
+      '<option value="__new__">+ Tambah peserta baru</option>';
+    if (current && names.indexOf(current) !== -1) sel.value = current;
+    else if (current === "__new__") sel.value = "__new__";
   }
+  document.getElementById("input-nama-select").addEventListener("change", function () {
+    var isNew = this.value === "__new__";
+    var newField = document.getElementById("input-nama-baru-field");
+    newField.hidden = !isNew;
+    if (isNew) document.getElementById("input-nama-baru").focus();
+  });
 
   function rerenderAll() {
     renderClassTrack();
-    renderPesertaDatalist();
+    renderPesertaSelect();
     var activePanel = tabs.find(function (t) { return !document.getElementById(t.panel).hidden; });
     if (activePanel && activePanel.btn === "tab-btn-dashboard") renderDashboard();
     if (activePanel && activePanel.btn === "tab-btn-progress") renderProgressList();
@@ -637,8 +676,20 @@
   // ---------- form submit ----------
   document.getElementById("hafalan-form").addEventListener("submit", async function (ev) {
     ev.preventDefault();
-    var nameRaw = document.getElementById("input-nama").value.trim();
-    if (!nameRaw) return;
+    var selectedName = document.getElementById("input-nama-select").value;
+    var nameRaw = selectedName === "__new__"
+      ? document.getElementById("input-nama-baru").value.trim()
+      : selectedName.trim();
+    if (!nameRaw) {
+      var toastEl = document.getElementById("toast");
+      toastEl.hidden = false;
+      toastEl.style.color = "var(--warn)";
+      toastEl.style.background = "var(--warn-soft)";
+      toastEl.textContent = selectedName === "__new__"
+        ? "Tulis nama peserta baru dulu."
+        : "Pilih nama peserta dulu.";
+      return;
+    }
     var pid = slugify(nameRaw);
     var juzVal = document.getElementById("input-juz").value;
     var btn = document.getElementById("submit-btn");
@@ -668,6 +719,7 @@
       document.getElementById("input-tanggal").value = todayStr;
       document.getElementById("input-jenis").value = "baru";
       document.getElementById("input-status").value = "hadir";
+      document.getElementById("input-nama-baru-field").hidden = true;
     } catch (e) {
       toast.hidden = false;
       toast.style.color = "var(--warn)";
