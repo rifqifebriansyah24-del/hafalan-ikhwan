@@ -1,0 +1,682 @@
+<title>Hafalan Ikhwan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #17332E;
+    --paper: #F1EEE3;
+    --surface: #FBF9F1;
+    --surface-2: #E8E3D3;
+    --line: #D8D2BF;
+    --muted: #706A58;
+    --accent: #A8763A;
+    --accent-strong: #8C5F28;
+    --accent-soft: rgba(168, 118, 58, .14);
+    --good: #3E6B52;
+    --good-soft: rgba(62, 107, 82, .14);
+    --warn: #B23B2E;
+    --warn-soft: rgba(178, 59, 46, .12);
+    --info: #3E6B7A;
+    --info-soft: rgba(62, 107, 122, .12);
+    --shadow: 0 1px 2px rgba(23, 51, 46, .06), 0 8px 24px rgba(23, 51, 46, .07);
+    --font-display: 'Spectral', Georgia, serif;
+    --font-body: 'Plus Jakarta Sans', 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #E9E4D3;
+      --paper: #101E1B;
+      --surface: #172B24;
+      --surface-2: #1F352C;
+      --line: #2C4038;
+      --muted: #9C9585;
+      --accent: #D6A15C;
+      --accent-strong: #E6B476;
+      --accent-soft: rgba(214, 161, 92, .16);
+      --good: #6FAE8C;
+      --good-soft: rgba(111, 174, 140, .16);
+      --warn: #E08770;
+      --warn-soft: rgba(224, 135, 112, .16);
+      --info: #7FB4C2;
+      --info-soft: rgba(127, 180, 194, .16);
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink: #E9E4D3;
+    --paper: #101E1B;
+    --surface: #172B24;
+    --surface-2: #1F352C;
+    --line: #2C4038;
+    --muted: #9C9585;
+    --accent: #D6A15C;
+    --accent-strong: #E6B476;
+    --accent-soft: rgba(214, 161, 92, .16);
+    --good: #6FAE8C;
+    --good-soft: rgba(111, 174, 140, .16);
+    --warn: #E08770;
+    --warn-soft: rgba(224, 135, 112, .16);
+    --info: #7FB4C2;
+    --info-soft: rgba(127, 180, 194, .16);
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    padding-inline: 16px;
+    padding-block: 20px 48px;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+  .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .muted { color: var(--muted); }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+  header.top {
+    display: flex; flex-direction: column; gap: 10px;
+    padding-block: 4px 16px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 18px;
+  }
+  .brand-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+  .brand-name { font-size: 1.5rem; font-weight: 600; }
+  .brand-sub { font-size: .82rem; color: var(--muted); margin-top: 2px; }
+  .today-pill {
+    font-family: var(--font-mono); font-size: .78rem; color: var(--muted);
+    background: var(--surface); border: 1px solid var(--line); border-radius: 999px;
+    padding: 4px 10px; white-space: nowrap;
+  }
+  .class-coverage { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .class-coverage .label { font-size: .74rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+
+  .juztrack { display: flex; gap: 3px; }
+  .juztrack .tick {
+    width: 8px; height: 16px; border-radius: 2px;
+    background: var(--surface-2); border: 1px solid var(--line);
+  }
+  .juztrack .tick.filled { background: var(--accent); border-color: var(--accent-strong); }
+  .juztrack .tick.current { box-shadow: 0 0 0 2px var(--ink); }
+  .juztrack.mini .tick { width: 5px; height: 11px; }
+
+  nav.tabs {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px;
+    background: var(--surface-2); border-radius: 12px; padding: 4px;
+    margin-bottom: 18px; position: sticky; top: 0; z-index: 5;
+  }
+  nav.tabs button {
+    font-family: var(--font-body); font-size: .84rem; font-weight: 600;
+    border: none; background: transparent; color: var(--muted);
+    padding: 9px 6px; border-radius: 9px; cursor: pointer;
+  }
+  nav.tabs button[aria-selected="true"] {
+    background: var(--surface); color: var(--ink); box-shadow: var(--shadow);
+  }
+
+  section[role="tabpanel"] { display: flex; flex-direction: column; gap: 16px; }
+  section[role="tabpanel"][hidden] { display: none; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: 16px; box-shadow: var(--shadow);
+  }
+  .card h2 { font-size: 1.05rem; margin-bottom: 4px; }
+  .card .hint { font-size: .82rem; color: var(--muted); margin-bottom: 14px; }
+
+  .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+  .field label { font-size: .78rem; font-weight: 600; color: var(--muted); }
+  .field input, .field select, .field textarea {
+    font-family: var(--font-body); font-size: .95rem; color: var(--ink);
+    background: var(--paper); border: 1px solid var(--line); border-radius: 9px;
+    padding: 9px 11px; width: 100%;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    outline: 2px solid var(--accent); outline-offset: 1px;
+  }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .checkline { display: flex; align-items: center; gap: 8px; font-size: .85rem; color: var(--ink); margin-bottom: 14px; }
+  .checkline input { width: 16px; height: 16px; }
+
+  button.primary {
+    font-family: var(--font-body); font-weight: 600; font-size: .92rem;
+    background: var(--accent); color: var(--surface); border: none;
+    border-radius: 9px; padding: 11px 16px; cursor: pointer; width: 100%;
+  }
+  button.primary:hover { background: var(--accent-strong); }
+  button.primary:disabled { opacity: .5; cursor: not-allowed; }
+
+  .toast {
+    font-size: .82rem; color: var(--good); background: var(--good-soft);
+    border-radius: 8px; padding: 8px 12px; margin-top: 10px;
+  }
+  .toast[hidden] { display: none; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 9px; border-radius: 999px; font-size: .72rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .02em;
+  }
+  .badge-warn { background: var(--warn-soft); color: var(--warn); }
+  .badge-info { background: var(--info-soft); color: var(--info); }
+  .badge-good { background: var(--good-soft); color: var(--good); }
+
+  .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .stat-tile { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+  .stat-tile .n { font-family: var(--font-mono); font-size: 1.5rem; font-weight: 500; line-height: 1; }
+  .stat-tile .label { font-size: .72rem; color: var(--muted); margin-top: 4px; }
+
+  .search-row { display: flex; gap: 8px; margin-bottom: 4px; }
+  .search-row input { flex: 1; }
+
+  .peserta-item {
+    border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .peserta-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .peserta-name { font-weight: 600; }
+  .peserta-latest { font-size: .82rem; color: var(--muted); }
+  .peserta-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+  .list-stack { display: flex; flex-direction: column; gap: 10px; }
+
+  .entry-row {
+    display: grid; grid-template-columns: 64px 1fr auto; gap: 10px; align-items: baseline;
+    padding-block: 8px; border-bottom: 1px solid var(--line); font-size: .86rem;
+  }
+  .entry-row:last-child { border-bottom: none; }
+  .entry-date { font-family: var(--font-mono); font-size: .78rem; color: var(--muted); }
+  .entry-detail .jenis { font-weight: 600; }
+  .entry-detail .note { color: var(--muted); font-size: .8rem; }
+
+  .empty-note {
+    font-size: .85rem; color: var(--muted); text-align: center; padding: 24px 8px;
+  }
+
+  .share-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  button.link-btn {
+    font-family: var(--font-body); font-size: .82rem; font-weight: 600;
+    background: var(--accent-soft); color: var(--accent-strong);
+    border: 1px solid var(--accent); border-radius: 8px; padding: 7px 12px; cursor: pointer;
+  }
+  button.link-btn:hover { background: var(--accent); color: var(--surface); }
+  .locked-name { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; margin-bottom: 4px; }
+  .locked-switch { font-size: .78rem; }
+  .locked-switch a { color: var(--info); }
+
+  body.kiosk-mode nav.tabs { display: none; }
+  body.kiosk-mode #panel-input, body.kiosk-mode #panel-dashboard { display: none; }
+</style>
+
+<header class="top">
+  <div class="brand-row">
+    <div>
+      <div class="brand-name">Hafalan Ikhwan</div>
+      <div class="brand-sub">Kelas Ikhwan &middot; Rumah Quran Tj. Priok</div>
+    </div>
+    <div class="today-pill mono" id="today-pill">--</div>
+  </div>
+  <div class="class-coverage">
+    <span class="label">Cakupan juz kelas</span>
+    <div class="juztrack mini" id="class-track"></div>
+    <span class="mono muted" id="class-track-count" style="font-size:.78rem;">0/30</span>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" id="tab-btn-input" aria-selected="true" aria-controls="panel-input">Input</button>
+  <button role="tab" id="tab-btn-dashboard" aria-selected="false" aria-controls="panel-dashboard">Dashboard</button>
+  <button role="tab" id="tab-btn-progress" aria-selected="false" aria-controls="panel-progress">Progress Saya</button>
+</nav>
+
+<section role="tabpanel" id="panel-input" aria-labelledby="tab-btn-input">
+  <div class="card">
+    <h2>Catat hafalan</h2>
+    <div class="hint">Untuk musyrif &mdash; isi setelah menyimak satu peserta.</div>
+    <form id="hafalan-form">
+      <div class="field">
+        <label for="input-nama">Nama peserta</label>
+        <input id="input-nama" name="nama" list="peserta-list" placeholder="Ketik atau pilih nama" required autocomplete="off">
+        <datalist id="peserta-list"></datalist>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="input-tanggal">Tanggal</label>
+          <input id="input-tanggal" name="tanggal" type="date" required>
+        </div>
+        <div class="field">
+          <label for="input-jenis">Jenis</label>
+          <select id="input-jenis" name="jenis">
+            <option value="baru">Hafalan baru</option>
+            <option value="tes">Tes</option>
+            <option value="murajaah">Murajaah</option>
+          </select>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="input-juz">Juz</label>
+          <input id="input-juz" name="juz" type="number" min="1" max="30" placeholder="1-30">
+        </div>
+        <div class="field">
+          <label for="input-surah">Surah</label>
+          <input id="input-surah" name="surah" placeholder="cth. Al-Baqarah">
+        </div>
+      </div>
+      <div class="field">
+        <label for="input-ayat">Ayat / batas hafalan</label>
+        <input id="input-ayat" name="ayat" placeholder="cth. 264, atau &quot;2,5 halaman pertama&quot;">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="input-status">Kehadiran</label>
+          <select id="input-status" name="attendance">
+            <option value="hadir">Hadir</option>
+            <option value="izin">Izin</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="input-musyrif">Dicatat oleh</label>
+          <input id="input-musyrif" name="musyrif" placeholder="Nama musyrif (opsional)">
+        </div>
+      </div>
+      <div class="checkline">
+        <input type="checkbox" id="input-review" name="needsReview">
+        <label for="input-review" style="font-weight:400;color:var(--ink);">Data belum pasti &mdash; tandai untuk dicek koordinator</label>
+      </div>
+      <div class="field">
+        <label for="input-catatan">Catatan (opsional)</label>
+        <input id="input-catatan" name="catatan" placeholder="cth. lancar, perlu ulang di ayat tertentu">
+      </div>
+      <button class="primary" type="submit" id="submit-btn">Simpan catatan</button>
+      <div class="toast" id="toast" hidden></div>
+    </form>
+  </div>
+</section>
+
+<section role="tabpanel" id="panel-dashboard" aria-labelledby="tab-btn-dashboard" hidden>
+  <div class="stat-row" id="dash-stats"></div>
+  <div class="card">
+    <h2>Peserta</h2>
+    <div class="hint">Untuk koordinator &mdash; pantau siapa yang butuh perhatian.</div>
+    <div class="search-row">
+      <input id="dash-search" placeholder="Cari nama peserta&hellip;">
+    </div>
+    <div class="checkline">
+      <input type="checkbox" id="dash-filter-attention">
+      <label for="dash-filter-attention" style="font-weight:400;color:var(--ink);">Tampilkan yang perlu perhatian saja</label>
+    </div>
+    <div class="list-stack" id="dash-list"></div>
+  </div>
+</section>
+
+<section role="tabpanel" id="panel-progress" aria-labelledby="tab-btn-progress" hidden>
+  <div class="card">
+    <h2>Progress saya</h2>
+    <div class="hint" id="progress-hint">Untuk peserta &mdash; pilih nama untuk melihat riwayat hafalan.</div>
+    <div class="field" id="progress-picker-field">
+      <label for="progress-picker">Nama saya</label>
+      <select id="progress-picker">
+        <option value="">Pilih nama&hellip;</option>
+      </select>
+    </div>
+    <div id="progress-locked-name" hidden></div>
+    <div class="share-row" id="progress-share" hidden>
+      <button type="button" class="link-btn" id="progress-share-btn">Salin link pribadi</button>
+      <span class="muted" id="progress-share-status" style="font-size:.78rem;"></span>
+    </div>
+    <div id="progress-detail"></div>
+  </div>
+</section>
+
+<script>
+(function () {
+  "use strict";
+
+  function slugify(name) {
+    var s = (name || "").toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "");
+    s = s.replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    return s || "p" + Date.now();
+  }
+
+  var JENIS_LABEL = { baru: "Hafalan baru", tes: "Tes", murajaah: "Murajaah" };
+
+  var pesertaMap = {};   // id -> {id, name}
+  var hafalanList = [];  // [{id, ...data}]
+  var dbNS = null;
+  var unsubPeserta = null, unsubHafalan = null;
+
+  var todayStr = new Date().toISOString().slice(0, 10);
+  document.getElementById("today-pill").textContent = todayStr;
+  document.getElementById("input-tanggal").value = todayStr;
+
+  // ---------- peserta view mode (personal / kiosk link) ----------
+  var urlParams = new URLSearchParams(location.search);
+  var lockedPid = urlParams.get("p") || "";
+  var kioskMode = lockedPid !== "" || urlParams.get("view") === "progress";
+  if (kioskMode) document.body.classList.add("kiosk-mode");
+
+  // ---------- tabs ----------
+  var tabs = [
+    { btn: "tab-btn-input", panel: "panel-input" },
+    { btn: "tab-btn-dashboard", panel: "panel-dashboard" },
+    { btn: "tab-btn-progress", panel: "panel-progress" }
+  ];
+  function selectTab(name) {
+    tabs.forEach(function (t) {
+      var isActive = t.btn === name;
+      document.getElementById(t.btn).setAttribute("aria-selected", String(isActive));
+      document.getElementById(t.panel).hidden = !isActive;
+    });
+    if (name === "tab-btn-dashboard") renderDashboard();
+    if (name === "tab-btn-progress") renderProgressList();
+  }
+  tabs.forEach(function (t) {
+    document.getElementById(t.btn).addEventListener("click", function () { selectTab(t.btn); });
+  });
+  if (kioskMode) {
+    document.getElementById("panel-input").hidden = true;
+    document.getElementById("panel-dashboard").hidden = true;
+    document.getElementById("panel-progress").hidden = false;
+  }
+
+  // ---------- juz track ----------
+  function buildTrack(container, touchedSet, currentJuz) {
+    container.innerHTML = "";
+    for (var n = 1; n <= 30; n++) {
+      var tick = document.createElement("span");
+      tick.className = "tick" + (touchedSet.has(n) ? " filled" : "") + (n === currentJuz ? " current" : "");
+      tick.title = "Juz " + n + (touchedSet.has(n) ? " — disentuh" : "");
+      container.appendChild(tick);
+    }
+  }
+
+  // ---------- derived per-peserta data ----------
+  function entriesFor(pid) {
+    return hafalanList
+      .filter(function (h) { return h.pesertaId === pid; })
+      .sort(function (a, b) {
+        if (a.tanggal !== b.tanggal) return a.tanggal < b.tanggal ? 1 : -1;
+        return (b.createdAt || "").localeCompare(a.createdAt || "");
+      });
+  }
+  function touchedJuzFor(entries) {
+    var set = new Set();
+    entries.forEach(function (e) { if (e.juz) set.add(e.juz); });
+    return set;
+  }
+  function flagsFor(entries) {
+    if (entries.length === 0) return { kind: "belum-lapor", label: "Belum ada laporan" };
+    var latest = entries[0];
+    if (latest.needsReview) return { kind: "perlu-cek", label: "Perlu dicek" };
+    if (latest.attendance === "izin") return { kind: "izin", label: "Izin" };
+    return { kind: "aktif", label: "Aktif" };
+  }
+  function badgeFor(flag) {
+    var cls = flag.kind === "aktif" ? "badge-good" : (flag.kind === "izin" ? "badge-info" : "badge-warn");
+    return '<span class="badge ' + cls + '">' + flag.label + "</span>";
+  }
+
+  // ---------- render: class-wide header track ----------
+  function renderClassTrack() {
+    var all = new Set();
+    hafalanList.forEach(function (h) { if (h.juz) all.add(h.juz); });
+    buildTrack(document.getElementById("class-track"), all, null);
+    document.getElementById("class-track-count").textContent = all.size + "/30";
+  }
+
+  // ---------- render: dashboard ----------
+  function renderDashboard() {
+    var pesertaIds = Object.keys(pesertaMap).sort(function (a, b) {
+      return pesertaMap[a].name.localeCompare(pesertaMap[b].name);
+    });
+
+    var perlu = 0, belum = 0, aktif = 0;
+    var rows = pesertaIds.map(function (pid) {
+      var entries = entriesFor(pid);
+      var flag = flagsFor(entries);
+      if (flag.kind === "perlu-cek") perlu++;
+      else if (flag.kind === "belum-lapor") belum++;
+      else if (flag.kind === "aktif") aktif++;
+      return { pid: pid, name: pesertaMap[pid].name, entries: entries, flag: flag };
+    });
+
+    var stats = document.getElementById("dash-stats");
+    stats.innerHTML =
+      '<div class="stat-tile"><div class="n">' + pesertaIds.length + '</div><div class="label">Total peserta</div></div>' +
+      '<div class="stat-tile"><div class="n" style="color:var(--warn)">' + (perlu + belum) + '</div><div class="label">Perlu perhatian</div></div>' +
+      '<div class="stat-tile"><div class="n" style="color:var(--good)">' + aktif + '</div><div class="label">Aktif</div></div>';
+
+    var q = document.getElementById("dash-search").value.trim().toLowerCase();
+    var onlyAttention = document.getElementById("dash-filter-attention").checked;
+    var filtered = rows.filter(function (r) {
+      if (q && r.name.toLowerCase().indexOf(q) === -1) return false;
+      if (onlyAttention && r.flag.kind === "aktif") return false;
+      return true;
+    });
+
+    var list = document.getElementById("dash-list");
+    if (filtered.length === 0) {
+      list.innerHTML = '<div class="empty-note">Tidak ada peserta yang cocok.</div>';
+      return;
+    }
+    list.innerHTML = filtered.map(function (r) {
+      var latest = r.entries[0];
+      var latestText = latest
+        ? JENIS_LABEL[latest.jenis] + " &middot; Juz " + (latest.juz || "?") + (latest.surah ? " " + latest.surah : "") + (latest.ayat ? " : " + latest.ayat : "") + " &middot; " + latest.tanggal
+        : "Belum ada catatan hafalan";
+      var track = document.createElement("div");
+      track.className = "juztrack mini";
+      buildTrack(track, touchedJuzFor(r.entries), latest ? latest.juz : null);
+      return (
+        '<div class="peserta-item">' +
+          '<div class="peserta-head">' +
+            '<span class="peserta-name">' + escapeHtml(r.name) + '</span>' +
+            '<div class="peserta-badges">' + badgeFor(r.flag) + '</div>' +
+          '</div>' +
+          '<div class="peserta-latest">' + latestText + '</div>' +
+          '<div data-track-slot="' + r.pid + '"></div>' +
+        '</div>'
+      );
+    }).join("");
+
+    filtered.forEach(function (r) {
+      var slot = list.querySelector('[data-track-slot="' + r.pid + '"]');
+      if (slot) {
+        var latest = r.entries[0];
+        buildTrack(slot, touchedJuzFor(r.entries), latest ? latest.juz : null);
+        slot.className = "juztrack mini";
+      }
+    });
+  }
+  document.getElementById("dash-search").addEventListener("input", renderDashboard);
+  document.getElementById("dash-filter-attention").addEventListener("change", renderDashboard);
+
+  // ---------- render: progress ----------
+  function renderShareRow(pid) {
+    var row = document.getElementById("progress-share");
+    if (!pid) { row.hidden = true; return; }
+    row.hidden = false;
+    document.getElementById("progress-share-status").textContent = "";
+  }
+  function renderProgressList() {
+    var picker = document.getElementById("progress-picker");
+    var pickerField = document.getElementById("progress-picker-field");
+    var lockedBox = document.getElementById("progress-locked-name");
+    var hint = document.getElementById("progress-hint");
+    var ids = Object.keys(pesertaMap).sort(function (a, b) {
+      return pesertaMap[a].name.localeCompare(pesertaMap[b].name);
+    });
+
+    if (lockedPid && pesertaMap[lockedPid]) {
+      pickerField.hidden = true;
+      lockedBox.hidden = false;
+      hint.textContent = "Progress hafalan kamu.";
+      lockedBox.innerHTML =
+        '<div class="locked-name">' + escapeHtml(pesertaMap[lockedPid].name) + '</div>' +
+        '<div class="locked-switch muted">Bukan kamu? <a href="' + location.pathname + '?view=progress">Pilih nama lain</a></div>';
+      renderShareRow(lockedPid);
+      renderProgressDetail(lockedPid);
+      return;
+    }
+
+    pickerField.hidden = false;
+    lockedBox.hidden = true;
+    hint.textContent = "Untuk peserta — pilih nama untuk melihat riwayat hafalan.";
+    var current = picker.value;
+    picker.innerHTML = '<option value="">Pilih nama&hellip;</option>' +
+      ids.map(function (id) { return '<option value="' + id + '">' + escapeHtml(pesertaMap[id].name) + '</option>'; }).join("");
+    picker.value = ids.indexOf(current) !== -1 ? current : "";
+    renderShareRow(picker.value);
+    renderProgressDetail(picker.value);
+  }
+  function renderProgressDetail(pid) {
+    var box = document.getElementById("progress-detail");
+    if (!pid) { box.innerHTML = ""; return; }
+    var entries = entriesFor(pid);
+    var touched = touchedJuzFor(entries);
+    var trackHtml = '<div class="juztrack" id="progress-track" style="margin-block:12px;"></div>';
+    var summary = '<div class="muted mono" style="font-size:.82rem;">' + touched.size + ' dari 30 juz pernah disentuh</div>';
+    var rowsHtml = entries.length
+      ? entries.map(function (e) {
+          return (
+            '<div class="entry-row">' +
+              '<span class="entry-date">' + e.tanggal + '</span>' +
+              '<span class="entry-detail">' +
+                '<span class="jenis">' + JENIS_LABEL[e.jenis] + '</span> &middot; Juz ' + (e.juz || "?") + (e.surah ? " " + escapeHtml(e.surah) : "") + (e.ayat ? " : " + escapeHtml(e.ayat) : "") +
+                (e.catatan ? '<div class="note">' + escapeHtml(e.catatan) + '</div>' : "") +
+              '</span>' +
+              '<span>' + (e.attendance === "izin" ? badgeFor({ kind: "izin", label: "Izin" }) : "") + (e.needsReview ? badgeFor({ kind: "perlu-cek", label: "Cek" }) : "") + '</span>' +
+            '</div>'
+          );
+        }).join("")
+      : '<div class="empty-note">Belum ada catatan hafalan untuk nama ini.</div>';
+    box.innerHTML = trackHtml + summary + '<div class="list-stack" style="margin-top:12px;">' + rowsHtml + '</div>';
+    buildTrack(document.getElementById("progress-track"), touched, entries[0] ? entries[0].juz : null);
+  }
+  document.getElementById("progress-picker").addEventListener("change", function () {
+    renderShareRow(this.value);
+    renderProgressDetail(this.value);
+  });
+  document.getElementById("progress-share-btn").addEventListener("click", async function () {
+    var pid = lockedPid || document.getElementById("progress-picker").value;
+    if (!pid) return;
+    var url = location.origin + location.pathname + "?p=" + encodeURIComponent(pid);
+    var statusEl = document.getElementById("progress-share-status");
+    try {
+      await navigator.clipboard.writeText(url);
+      statusEl.textContent = "Tersalin!";
+    } catch (e) {
+      statusEl.textContent = url;
+    }
+    setTimeout(function () { statusEl.textContent = ""; }, 2500);
+  });
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c];
+    });
+  }
+
+  // ---------- datalist for input tab ----------
+  function renderPesertaDatalist() {
+    var dl = document.getElementById("peserta-list");
+    dl.innerHTML = Object.keys(pesertaMap)
+      .sort(function (a, b) { return pesertaMap[a].name.localeCompare(pesertaMap[b].name); })
+      .map(function (id) { return '<option value="' + escapeHtml(pesertaMap[id].name) + '">'; })
+      .join("");
+  }
+
+  function rerenderAll() {
+    renderClassTrack();
+    renderPesertaDatalist();
+    var activePanel = tabs.find(function (t) { return !document.getElementById(t.panel).hidden; });
+    if (activePanel && activePanel.btn === "tab-btn-dashboard") renderDashboard();
+    if (activePanel && activePanel.btn === "tab-btn-progress") renderProgressList();
+  }
+
+  // ---------- db wiring ----------
+  async function initDb() {
+    try {
+      dbNS = await claude.use("db");
+    } catch (e) {
+      dbNS = null;
+    }
+    if (!dbNS) {
+      document.getElementById("submit-btn").disabled = true;
+      var toast = document.getElementById("toast");
+      toast.hidden = false;
+      toast.style.color = "var(--warn)";
+      toast.style.background = "var(--warn-soft)";
+      toast.textContent = "Penyimpanan data tidak tersedia di tampilan ini.";
+      return;
+    }
+    unsubPeserta = dbNS.collection("peserta").onSnapshot(function (snap) {
+      var map = {};
+      snap.docs.forEach(function (d) {
+        var data = d.data();
+        if (data) map[d.id] = { id: d.id, name: data.name || d.id };
+      });
+      pesertaMap = map;
+      rerenderAll();
+    }, function () {});
+    unsubHafalan = dbNS.collection("hafalan").onSnapshot(function (snap) {
+      hafalanList = snap.docs.map(function (d) {
+        var data = d.data() || {};
+        data.id = d.id;
+        return data;
+      });
+      rerenderAll();
+    }, function () {});
+  }
+  initDb();
+
+  // ---------- form submit ----------
+  document.getElementById("hafalan-form").addEventListener("submit", async function (ev) {
+    ev.preventDefault();
+    if (!dbNS) return;
+    var nameRaw = document.getElementById("input-nama").value.trim();
+    if (!nameRaw) return;
+    var pid = slugify(nameRaw);
+    var juzVal = document.getElementById("input-juz").value;
+    var btn = document.getElementById("submit-btn");
+    var toast = document.getElementById("toast");
+    btn.disabled = true;
+    try {
+      await dbNS.collection("peserta").doc(pid).set({ name: nameRaw });
+      await dbNS.collection("hafalan").add({
+        pesertaId: pid,
+        pesertaName: nameRaw,
+        tanggal: document.getElementById("input-tanggal").value || todayStr,
+        jenis: document.getElementById("input-jenis").value,
+        juz: juzVal ? Number(juzVal) : null,
+        surah: document.getElementById("input-surah").value.trim(),
+        ayat: document.getElementById("input-ayat").value.trim(),
+        attendance: document.getElementById("input-status").value,
+        needsReview: document.getElementById("input-review").checked,
+        musyrif: document.getElementById("input-musyrif").value.trim(),
+        catatan: document.getElementById("input-catatan").value.trim(),
+        createdAt: new Date().toISOString()
+      });
+      toast.hidden = false;
+      toast.style.color = "var(--good)";
+      toast.style.background = "var(--good-soft)";
+      toast.textContent = "Tersimpan — catatan untuk " + nameRaw + ".";
+      document.getElementById("hafalan-form").reset();
+      document.getElementById("input-tanggal").value = todayStr;
+      document.getElementById("input-jenis").value = "baru";
+      document.getElementById("input-status").value = "hadir";
+    } catch (e) {
+      toast.hidden = false;
+      toast.style.color = "var(--warn)";
+      toast.style.background = "var(--warn-soft)";
+      toast.textContent = "Gagal menyimpan, coba lagi.";
+    } finally {
+      btn.disabled = false;
+    }
+  });
+})();
+</script>
