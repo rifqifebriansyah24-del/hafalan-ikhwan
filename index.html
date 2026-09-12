@@ -332,7 +332,25 @@
   </div>
 </section>
 
-<script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+  import {
+    getFirestore, collection, doc, setDoc, addDoc, onSnapshot
+  } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+
+  var firebaseConfig = {
+    apiKey: "AIzaSyC0LX2tvSbPLuitPEFK9vRcd1QeBahnUa0",
+    authDomain: "kelas-hafalan-rq.firebaseapp.com",
+    projectId: "kelas-hafalan-rq",
+    storageBucket: "kelas-hafalan-rq.firebasestorage.app",
+    messagingSenderId: "177458746416",
+    appId: "1:177458746416:web:61dfb003948454576d49f5"
+  };
+  var firebaseApp = initializeApp(firebaseConfig);
+  var db = getFirestore(firebaseApp);
+  var pesertaCol = collection(db, "peserta");
+  var hafalanCol = collection(db, "hafalan");
+
 (function () {
   "use strict";
 
@@ -343,12 +361,9 @@
   }
 
   var JENIS_LABEL = { baru: "Hafalan baru", tes: "Tes", murajaah: "Murajaah" };
-  var ARTIFACT_URL = "https://claude.ai/code/artifact/f63a533e-0a2c-439a-8524-91a1b4810140";
 
   var pesertaMap = {};   // id -> {id, name}
   var hafalanList = [];  // [{id, ...data}]
-  var dbNS = null;
-  var unsubPeserta = null, unsubHafalan = null;
 
   var todayStr = new Date().toISOString().slice(0, 10);
   document.getElementById("today-pill").textContent = todayStr;
@@ -565,7 +580,7 @@
   document.getElementById("progress-share-btn").addEventListener("click", async function () {
     var pid = lockedPid || document.getElementById("progress-picker").value;
     if (!pid) return;
-    var url = ARTIFACT_URL + "?p=" + encodeURIComponent(pid);
+    var url = location.origin + location.pathname + "?p=" + encodeURIComponent(pid);
     var statusEl = document.getElementById("progress-share-status");
     try {
       await navigator.clipboard.writeText(url);
@@ -600,46 +615,28 @@
   }
 
   // ---------- db wiring ----------
-  async function initDb() {
-    try {
-      dbNS = await claude.use("db");
-    } catch (e) {
-      dbNS = null;
-    }
-    if (!dbNS) {
-      document.getElementById("submit-btn").disabled = true;
-      var toast = document.getElementById("toast");
-      toast.hidden = false;
-      toast.style.color = "var(--warn)";
-      toast.style.background = "var(--warn-soft)";
-      toast.textContent = "Penyimpanan data tidak tersedia di tampilan ini.";
-      return;
-    }
-    unsubPeserta = dbNS.collection("peserta").onSnapshot(function (snap) {
-      var map = {};
-      snap.docs.forEach(function (d) {
-        var data = d.data();
-        if (data) map[d.id] = { id: d.id, name: data.name || d.id };
-      });
-      pesertaMap = map;
-      rerenderAll();
-    }, function () {});
-    unsubHafalan = dbNS.collection("hafalan").onSnapshot(function (snap) {
-      hafalanList = snap.docs.map(function (d) {
-        var data = d.data() || {};
-        var out = Object.assign({}, data);
-        out.id = d.id;
-        return out;
-      });
-      rerenderAll();
-    }, function () {});
-  }
-  initDb();
+  onSnapshot(pesertaCol, function (snap) {
+    var map = {};
+    snap.docs.forEach(function (d) {
+      var data = d.data();
+      if (data) map[d.id] = { id: d.id, name: data.name || d.id };
+    });
+    pesertaMap = map;
+    rerenderAll();
+  }, function (err) { console.error("peserta onSnapshot error", err); });
+
+  onSnapshot(hafalanCol, function (snap) {
+    hafalanList = snap.docs.map(function (d) {
+      var out = Object.assign({}, d.data());
+      out.id = d.id;
+      return out;
+    });
+    rerenderAll();
+  }, function (err) { console.error("hafalan onSnapshot error", err); });
 
   // ---------- form submit ----------
   document.getElementById("hafalan-form").addEventListener("submit", async function (ev) {
     ev.preventDefault();
-    if (!dbNS) return;
     var nameRaw = document.getElementById("input-nama").value.trim();
     if (!nameRaw) return;
     var pid = slugify(nameRaw);
@@ -648,8 +645,8 @@
     var toast = document.getElementById("toast");
     btn.disabled = true;
     try {
-      await dbNS.collection("peserta").doc(pid).set({ name: nameRaw });
-      await dbNS.collection("hafalan").add({
+      await setDoc(doc(pesertaCol, pid), { name: nameRaw });
+      await addDoc(hafalanCol, {
         pesertaId: pid,
         pesertaName: nameRaw,
         tanggal: document.getElementById("input-tanggal").value || todayStr,
