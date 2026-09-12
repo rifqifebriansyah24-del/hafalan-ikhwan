@@ -626,8 +626,9 @@
     unsubHafalan = dbNS.collection("hafalan").onSnapshot(function (snap) {
       hafalanList = snap.docs.map(function (d) {
         var data = d.data() || {};
-        data.id = d.id;
-        return data;
+        var out = Object.assign({}, data);
+        out.id = d.id;
+        return out;
       });
       rerenderAll();
     }, function () {});
