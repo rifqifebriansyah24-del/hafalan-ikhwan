@@ -343,6 +343,7 @@
   }
 
   var JENIS_LABEL = { baru: "Hafalan baru", tes: "Tes", murajaah: "Murajaah" };
+  var ARTIFACT_URL = "https://claude.ai/code/artifact/f63a533e-0a2c-439a-8524-91a1b4810140";
 
   var pesertaMap = {};   // id -> {id, name}
   var hafalanList = [];  // [{id, ...data}]
@@ -564,7 +565,7 @@
   document.getElementById("progress-share-btn").addEventListener("click", async function () {
     var pid = lockedPid || document.getElementById("progress-picker").value;
     if (!pid) return;
-    var url = location.origin + location.pathname + "?p=" + encodeURIComponent(pid);
+    var url = ARTIFACT_URL + "?p=" + encodeURIComponent(pid);
     var statusEl = document.getElementById("progress-share-status");
     try {
       await navigator.clipboard.writeText(url);
