@@ -253,6 +253,22 @@
     font-size: .9rem; line-height: 1; padding: 2px 4px;
   }
   .entry-delete-btn:hover { color: var(--warn); }
+
+  .mini-select-shell { position: relative; display: inline-block; }
+  .mini-select-shell select {
+    appearance: none; -webkit-appearance: none; -moz-appearance: none;
+    font-family: var(--font-body); font-size: .76rem; font-weight: 600; color: var(--ink);
+    background: var(--paper); border: 1px solid var(--line); border-radius: 7px;
+    padding: 5px 24px 5px 9px; cursor: pointer;
+  }
+  .mini-select-shell::after {
+    content: ""; position: absolute; right: 9px; top: 50%; margin-top: 1px;
+    width: 8px; height: 5px; transform: translateY(-50%);
+    background: var(--muted); pointer-events: none;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='black' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='black' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;
+  }
+  .peserta-actions { flex-wrap: wrap; justify-content: space-between; }
 </style>
 </head>
 <body>
@@ -535,6 +551,31 @@
     entries.forEach(function (e) { if (e.juz) set.add(e.juz); });
     return set;
   }
+  // "arah" (direction) describes how a peserta actually memorizes:
+  // forward from Juz 1 (reaching Juz N implies 1..N-1 are done), backward
+  // from Juz 30 (common for beginners - short surah first), or acak/default
+  // where each juz is only counted if there's an actual entry for it (e.g.
+  // someone just asked to be listened to on one surah, not a claim of
+  // sequential mastery). Defaults to "acak" so nothing is assumed.
+  function coverageJuzFor(pid, entries) {
+    var touched = touchedJuzFor(entries);
+    if (touched.size === 0) return touched;
+    var arah = (pesertaMap[pid] && pesertaMap[pid].arah) || "acak";
+    var nums = Array.from(touched);
+    if (arah === "maju") {
+      var max = Math.max.apply(null, nums);
+      var up = new Set();
+      for (var i = 1; i <= max; i++) up.add(i);
+      return up;
+    }
+    if (arah === "mundur") {
+      var min = Math.min.apply(null, nums);
+      var down = new Set();
+      for (var j = min; j <= 30; j++) down.add(j);
+      return down;
+    }
+    return touched;
+  }
   function daysSince(dateStr) {
     var p = dateStr.split("-").map(Number);
     var then = new Date(p[0], p[1] - 1, p[2]);
@@ -560,7 +601,9 @@
   // ---------- render: class-wide header track ----------
   function renderClassTrack() {
     var all = new Set();
-    hafalanList.forEach(function (h) { if (h.juz) all.add(h.juz); });
+    Object.keys(pesertaMap).forEach(function (pid) {
+      coverageJuzFor(pid, entriesFor(pid)).forEach(function (n) { all.add(n); });
+    });
     buildTrack(document.getElementById("class-track"), all, null);
     document.getElementById("class-track-count").textContent = all.size + "/30";
   }
@@ -608,6 +651,14 @@
         ? JENIS_LABEL[latest.jenis] + " &middot; Juz " + (latest.juz || "?") + (latest.surah ? " " + latest.surah : "") + (latest.ayat ? " : " + latest.ayat : "") + " &middot; " + latest.tanggal
         : "Belum ada catatan hafalan";
       var badges = badgeFor(r.flag) + (r.active ? "" : '<span class="badge badge-muted">Tidak aktif</span>');
+      var arah = (pesertaMap[r.pid] && pesertaMap[r.pid].arah) || "acak";
+      var arahOptions = [
+        ["acak", "Acak / per-surah"],
+        ["maju", "Maju dari Juz 1"],
+        ["mundur", "Mundur dari Juz 30"]
+      ].map(function (o) {
+        return '<option value="' + o[0] + '"' + (arah === o[0] ? " selected" : "") + ">" + o[1] + "</option>";
+      }).join("");
       return (
         '<div class="peserta-item' + (r.active ? "" : " inactive") + '">' +
           '<div class="peserta-head">' +
@@ -617,6 +668,7 @@
           '<div class="peserta-latest">' + latestText + '</div>' +
           '<div data-track-slot="' + r.pid + '"></div>' +
           '<div class="peserta-actions">' +
+            '<div class="mini-select-shell"><select class="arah-select" data-pid="' + r.pid + '">' + arahOptions + '</select></div>' +
             '<button type="button" class="text-btn toggle-active-btn" data-pid="' + r.pid + '" data-active="' + r.active + '">' +
               (r.active ? "Tandai tidak aktif" : "Aktifkan lagi") +
             "</button>" +
@@ -629,7 +681,7 @@
       var slot = list.querySelector('[data-track-slot="' + r.pid + '"]');
       if (slot) {
         var latest = r.entries[0];
-        buildTrack(slot, touchedJuzFor(r.entries), latest ? latest.juz : null);
+        buildTrack(slot, coverageJuzFor(r.pid, r.entries), latest ? latest.juz : null);
         slot.className = "juztrack mini";
       }
     });
@@ -645,6 +697,15 @@
     btn.disabled = true;
     updateDoc(doc(pesertaCol, pid), { active: !isActive }).catch(function () {
       btn.disabled = false;
+    });
+  });
+  document.getElementById("dash-list").addEventListener("change", function (ev) {
+    var sel = ev.target.closest(".arah-select");
+    if (!sel) return;
+    var pid = sel.dataset.pid;
+    sel.disabled = true;
+    updateDoc(doc(pesertaCol, pid), { arah: sel.value }).catch(function () {
+      sel.disabled = false;
     });
   });
 
@@ -690,9 +751,9 @@
     var box = document.getElementById("progress-detail");
     if (!pid) { box.innerHTML = ""; return; }
     var entries = entriesFor(pid);
-    var touched = touchedJuzFor(entries);
+    var touched = coverageJuzFor(pid, entries);
     var trackHtml = '<div class="juztrack" id="progress-track" style="margin-block:12px;"></div>';
-    var summary = '<div class="muted mono" style="font-size:.82rem;">' + touched.size + ' dari 30 juz pernah disentuh</div>';
+    var summary = '<div class="muted mono" style="font-size:.82rem;">' + touched.size + ' dari 30 juz tercakup</div>';
     var rowsHtml = entries.length
       ? entries.map(function (e) {
           return (
@@ -800,7 +861,7 @@
     var map = {};
     snap.docs.forEach(function (d) {
       var data = d.data();
-      if (data) map[d.id] = { id: d.id, name: data.name || d.id, active: data.active };
+      if (data) map[d.id] = { id: d.id, name: data.name || d.id, active: data.active, arah: data.arah };
     });
     pesertaMap = map;
     rerenderAll();
