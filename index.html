@@ -224,6 +224,30 @@
 
   body.kiosk-mode nav.tabs { display: none; }
   body.kiosk-mode #panel-input, body.kiosk-mode #panel-dashboard { display: none; }
+
+  .history-card {
+    background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 12px; margin-bottom: 14px; font-size: .82rem;
+  }
+  .history-label { font-size: .7rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+  .history-row { display: flex; gap: 8px; padding-block: 3px; }
+  .history-row:not(:last-child) { border-bottom: 1px dashed var(--line); }
+  .history-date { color: var(--muted); white-space: nowrap; }
+
+  .peserta-item.inactive { opacity: .6; }
+  .badge-muted { background: var(--surface-2); color: var(--muted); }
+  .peserta-actions { display: flex; gap: 8px; align-items: center; }
+  button.text-btn {
+    font-family: var(--font-body); font-size: .76rem; font-weight: 600;
+    background: none; border: none; color: var(--info); cursor: pointer; padding: 2px 0;
+  }
+  button.text-btn:hover { text-decoration: underline; }
+
+  .entry-delete-btn {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: .9rem; line-height: 1; padding: 2px 4px;
+  }
+  .entry-delete-btn:hover { color: var(--warn); }
 </style>
 
 <header class="top">
@@ -264,6 +288,7 @@
         <label for="input-nama-baru">Nama peserta baru</label>
         <input id="input-nama-baru" placeholder="Tulis nama lengkap">
       </div>
+      <div class="history-card" id="input-history" hidden></div>
       <div class="row2">
         <div class="field">
           <label for="input-tanggal">Tanggal</label>
@@ -287,7 +312,11 @@
         </div>
         <div class="field">
           <label for="input-surah">Surah</label>
-          <input id="input-surah" name="surah" placeholder="cth. Al-Baqarah">
+          <div class="select-shell">
+            <select id="input-surah" name="surah">
+              <option value="">Pilih surah&hellip;</option>
+            </select>
+          </div>
         </div>
       </div>
       <div class="field">
@@ -335,6 +364,10 @@
       <input type="checkbox" id="dash-filter-attention">
       <label for="dash-filter-attention" style="font-weight:400;color:var(--ink);">Tampilkan yang perlu perhatian saja</label>
     </div>
+    <div class="checkline">
+      <input type="checkbox" id="dash-filter-inactive">
+      <label for="dash-filter-inactive" style="font-weight:400;color:var(--ink);">Tampilkan yang tidak aktif</label>
+    </div>
     <div class="list-stack" id="dash-list"></div>
   </div>
 </section>
@@ -363,7 +396,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
   import {
-    getFirestore, collection, doc, setDoc, addDoc, onSnapshot
+    getFirestore, collection, doc, setDoc, addDoc, updateDoc, onSnapshot
   } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
   var firebaseConfig = {
@@ -390,12 +423,55 @@
 
   var JENIS_LABEL = { baru: "Hafalan baru", tes: "Tes", murajaah: "Murajaah" };
 
+  // 114 surah in Mushaf order, with the juz each one STARTS in. A surah that
+  // spans multiple juz (e.g. An-Nisa starts juz 4 but runs into juz 5) only
+  // gets its starting juz here — good enough as an editable default, not a
+  // precise ayat-level lookup.
+  var SURAH_JUZ = [
+    ["Al-Fatihah", 1], ["Al-Baqarah", 1], ["Ali Imran", 3], ["An-Nisa", 4], ["Al-Ma'idah", 6],
+    ["Al-An'am", 7], ["Al-A'raf", 8], ["Al-Anfal", 9], ["At-Taubah", 10], ["Yunus", 11],
+    ["Hud", 11], ["Yusuf", 12], ["Ar-Ra'd", 13], ["Ibrahim", 13], ["Al-Hijr", 14],
+    ["An-Nahl", 14], ["Al-Isra", 15], ["Al-Kahfi", 15], ["Maryam", 16], ["Thaha", 16],
+    ["Al-Anbiya", 17], ["Al-Hajj", 17], ["Al-Muminun", 18], ["An-Nur", 18], ["Al-Furqan", 18],
+    ["Asy-Syuara", 19], ["An-Naml", 19], ["Al-Qashash", 20], ["Al-Ankabut", 20], ["Ar-Rum", 21],
+    ["Luqman", 21], ["As-Sajdah", 21], ["Al-Ahzab", 21], ["Saba", 22], ["Fathir", 22],
+    ["Yasin", 22], ["Ash-Shaffat", 23], ["Shad", 23], ["Az-Zumar", 23], ["Ghafir", 24],
+    ["Fushshilat", 24], ["Asy-Syura", 25], ["Az-Zukhruf", 25], ["Ad-Dukhan", 25], ["Al-Jatsiyah", 25],
+    ["Al-Ahqaf", 26], ["Muhammad", 26], ["Al-Fath", 26], ["Al-Hujurat", 26], ["Qaf", 26],
+    ["Adz-Dzariyat", 26], ["Ath-Thur", 27], ["An-Najm", 27], ["Al-Qamar", 27], ["Ar-Rahman", 27],
+    ["Al-Waqiah", 27], ["Al-Hadid", 27], ["Al-Mujadalah", 28], ["Al-Hasyr", 28], ["Al-Mumtahanah", 28],
+    ["Ash-Shaff", 28], ["Al-Jumuah", 28], ["Al-Munafiqun", 28], ["At-Taghabun", 28], ["Ath-Thalaq", 28],
+    ["At-Tahrim", 28], ["Al-Mulk", 29], ["Al-Qalam", 29], ["Al-Haqqah", 29], ["Al-Ma'arij", 29],
+    ["Nuh", 29], ["Al-Jin", 29], ["Al-Muzzammil", 29], ["Al-Muddatsir", 29], ["Al-Qiyamah", 29],
+    ["Al-Insan", 29], ["Al-Mursalat", 29], ["An-Naba", 30], ["An-Naziat", 30], ["Abasa", 30],
+    ["At-Takwir", 30], ["Al-Infithar", 30], ["Al-Muthaffifin", 30], ["Al-Insyiqaq", 30], ["Al-Buruj", 30],
+    ["Ath-Thariq", 30], ["Al-Ala", 30], ["Al-Ghasyiyah", 30], ["Al-Fajr", 30], ["Al-Balad", 30],
+    ["Asy-Syams", 30], ["Al-Lail", 30], ["Adh-Dhuha", 30], ["Asy-Syarh", 30], ["At-Tin", 30],
+    ["Al-Alaq", 30], ["Al-Qadr", 30], ["Al-Bayyinah", 30], ["Az-Zalzalah", 30], ["Al-Adiyat", 30],
+    ["Al-Qariah", 30], ["At-Takatsur", 30], ["Al-Ashr", 30], ["Al-Humazah", 30], ["Al-Fil", 30],
+    ["Quraisy", 30], ["Al-Maun", 30], ["Al-Kautsar", 30], ["Al-Kafirun", 30], ["An-Nasr", 30],
+    ["Al-Lahab", 30], ["Al-Ikhlas", 30], ["Al-Falaq", 30], ["An-Nas", 30]
+  ];
+  var SURAH_START_JUZ = {};
+  SURAH_JUZ.forEach(function (s) { SURAH_START_JUZ[s[0]] = s[1]; });
+
   var pesertaMap = {};   // id -> {id, name}
   var hafalanList = [];  // [{id, ...data}]
 
   var todayStr = new Date().toISOString().slice(0, 10);
   document.getElementById("today-pill").textContent = todayStr;
   document.getElementById("input-tanggal").value = todayStr;
+
+  // ---------- static surah dropdown ----------
+  (function populateSurahSelect() {
+    var sel = document.getElementById("input-surah");
+    sel.innerHTML = '<option value="">Pilih surah&hellip;</option>' +
+      SURAH_JUZ.map(function (s) { return '<option value="' + s[0] + '">' + s[0] + '</option>'; }).join("");
+  })();
+  document.getElementById("input-surah").addEventListener("change", function () {
+    var startJuz = SURAH_START_JUZ[this.value];
+    if (startJuz) document.getElementById("input-juz").value = startJuz;
+  });
 
   // ---------- peserta view mode (personal / kiosk link) ----------
   var urlParams = new URLSearchParams(location.search);
@@ -452,11 +528,21 @@
     entries.forEach(function (e) { if (e.juz) set.add(e.juz); });
     return set;
   }
+  function daysSince(dateStr) {
+    var p = dateStr.split("-").map(Number);
+    var then = new Date(p[0], p[1] - 1, p[2]);
+    var now = new Date();
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.round((today - then) / 86400000);
+  }
+  var STALE_DAYS = 14;
   function flagsFor(entries) {
     if (entries.length === 0) return { kind: "belum-lapor", label: "Belum ada laporan" };
     var latest = entries[0];
     if (latest.needsReview) return { kind: "perlu-cek", label: "Perlu dicek" };
     if (latest.attendance === "izin") return { kind: "izin", label: "Izin" };
+    var idle = daysSince(latest.tanggal);
+    if (idle > STALE_DAYS) return { kind: "stale", label: "Belum setor " + idle + " hari" };
     return { kind: "aktif", label: "Aktif" };
   }
   function badgeFor(flag) {
@@ -473,32 +559,34 @@
   }
 
   // ---------- render: dashboard ----------
+  var ATTENTION_KINDS = { "perlu-cek": true, "belum-lapor": true, "stale": true };
   function renderDashboard() {
     var pesertaIds = Object.keys(pesertaMap).sort(function (a, b) {
       return pesertaMap[a].name.localeCompare(pesertaMap[b].name);
     });
 
-    var perlu = 0, belum = 0, aktif = 0;
+    var attention = 0, aktif = 0;
     var rows = pesertaIds.map(function (pid) {
       var entries = entriesFor(pid);
       var flag = flagsFor(entries);
-      if (flag.kind === "perlu-cek") perlu++;
-      else if (flag.kind === "belum-lapor") belum++;
+      if (ATTENTION_KINDS[flag.kind]) attention++;
       else if (flag.kind === "aktif") aktif++;
-      return { pid: pid, name: pesertaMap[pid].name, entries: entries, flag: flag };
+      return { pid: pid, name: pesertaMap[pid].name, active: pesertaMap[pid].active !== false, entries: entries, flag: flag };
     });
 
     var stats = document.getElementById("dash-stats");
     stats.innerHTML =
       '<div class="stat-tile"><div class="n">' + pesertaIds.length + '</div><div class="label">Total peserta</div></div>' +
-      '<div class="stat-tile"><div class="n" style="color:var(--warn)">' + (perlu + belum) + '</div><div class="label">Perlu perhatian</div></div>' +
+      '<div class="stat-tile"><div class="n" style="color:var(--warn)">' + attention + '</div><div class="label">Perlu perhatian</div></div>' +
       '<div class="stat-tile"><div class="n" style="color:var(--good)">' + aktif + '</div><div class="label">Aktif</div></div>';
 
     var q = document.getElementById("dash-search").value.trim().toLowerCase();
     var onlyAttention = document.getElementById("dash-filter-attention").checked;
+    var showInactive = document.getElementById("dash-filter-inactive").checked;
     var filtered = rows.filter(function (r) {
       if (q && r.name.toLowerCase().indexOf(q) === -1) return false;
-      if (onlyAttention && r.flag.kind === "aktif") return false;
+      if (onlyAttention && !ATTENTION_KINDS[r.flag.kind]) return false;
+      if (!showInactive && !r.active) return false;
       return true;
     });
 
@@ -512,17 +600,20 @@
       var latestText = latest
         ? JENIS_LABEL[latest.jenis] + " &middot; Juz " + (latest.juz || "?") + (latest.surah ? " " + latest.surah : "") + (latest.ayat ? " : " + latest.ayat : "") + " &middot; " + latest.tanggal
         : "Belum ada catatan hafalan";
-      var track = document.createElement("div");
-      track.className = "juztrack mini";
-      buildTrack(track, touchedJuzFor(r.entries), latest ? latest.juz : null);
+      var badges = badgeFor(r.flag) + (r.active ? "" : '<span class="badge badge-muted">Tidak aktif</span>');
       return (
-        '<div class="peserta-item">' +
+        '<div class="peserta-item' + (r.active ? "" : " inactive") + '">' +
           '<div class="peserta-head">' +
             '<span class="peserta-name">' + escapeHtml(r.name) + '</span>' +
-            '<div class="peserta-badges">' + badgeFor(r.flag) + '</div>' +
+            '<div class="peserta-badges">' + badges + '</div>' +
           '</div>' +
           '<div class="peserta-latest">' + latestText + '</div>' +
           '<div data-track-slot="' + r.pid + '"></div>' +
+          '<div class="peserta-actions">' +
+            '<button type="button" class="text-btn toggle-active-btn" data-pid="' + r.pid + '" data-active="' + r.active + '">' +
+              (r.active ? "Tandai tidak aktif" : "Aktifkan lagi") +
+            "</button>" +
+          "</div>" +
         '</div>'
       );
     }).join("");
@@ -538,6 +629,17 @@
   }
   document.getElementById("dash-search").addEventListener("input", renderDashboard);
   document.getElementById("dash-filter-attention").addEventListener("change", renderDashboard);
+  document.getElementById("dash-filter-inactive").addEventListener("change", renderDashboard);
+  document.getElementById("dash-list").addEventListener("click", function (ev) {
+    var btn = ev.target.closest(".toggle-active-btn");
+    if (!btn) return;
+    var pid = btn.dataset.pid;
+    var isActive = btn.dataset.active === "true";
+    btn.disabled = true;
+    updateDoc(doc(pesertaCol, pid), { active: !isActive }).catch(function () {
+      btn.disabled = false;
+    });
+  });
 
   // ---------- render: progress ----------
   function renderShareRow(pid) {
@@ -593,7 +695,9 @@
                 '<span class="jenis">' + JENIS_LABEL[e.jenis] + '</span> &middot; Juz ' + (e.juz || "?") + (e.surah ? " " + escapeHtml(e.surah) : "") + (e.ayat ? " : " + escapeHtml(e.ayat) : "") +
                 (e.catatan ? '<div class="note">' + escapeHtml(e.catatan) + '</div>' : "") +
               '</span>' +
-              '<span>' + (e.attendance === "izin" ? badgeFor({ kind: "izin", label: "Izin" }) : "") + (e.needsReview ? badgeFor({ kind: "perlu-cek", label: "Cek" }) : "") + '</span>' +
+              '<span>' + (e.attendance === "izin" ? badgeFor({ kind: "izin", label: "Izin" }) : "") + (e.needsReview ? badgeFor({ kind: "perlu-cek", label: "Cek" }) : "") +
+                (kioskMode ? "" : '<button type="button" class="entry-delete-btn" data-id="' + e.id + '" title="Hapus catatan ini">✕</button>') +
+              '</span>' +
             '</div>'
           );
         }).join("")
@@ -601,6 +705,15 @@
     box.innerHTML = trackHtml + summary + '<div class="list-stack" style="margin-top:12px;">' + rowsHtml + '</div>';
     buildTrack(document.getElementById("progress-track"), touched, entries[0] ? entries[0].juz : null);
   }
+  document.getElementById("progress-detail").addEventListener("click", function (ev) {
+    var btn = ev.target.closest(".entry-delete-btn");
+    if (!btn) return;
+    if (!confirm("Hapus catatan ini? Tindakan ini tidak bisa dibatalkan dari tampilan ini.")) return;
+    btn.disabled = true;
+    updateDoc(doc(hafalanCol, btn.dataset.id), { deleted: true }).catch(function () {
+      btn.disabled = false;
+    });
+  });
   document.getElementById("progress-picker").addEventListener("change", function () {
     renderShareRow(this.value);
     renderProgressDetail(this.value);
@@ -630,6 +743,7 @@
     var sel = document.getElementById("input-nama-select");
     var current = sel.value;
     var names = Object.keys(pesertaMap)
+      .filter(function (id) { return pesertaMap[id].active !== false; })
       .map(function (id) { return pesertaMap[id].name; })
       .sort(function (a, b) { return a.localeCompare(b); });
     sel.innerHTML = '<option value="">Pilih nama&hellip;</option>' +
@@ -638,11 +752,32 @@
     if (current && names.indexOf(current) !== -1) sel.value = current;
     else if (current === "__new__") sel.value = "__new__";
   }
+  function renderInputHistory(name) {
+    var box = document.getElementById("input-history");
+    document.getElementById("input-juz").value = "";
+    document.getElementById("input-surah").value = "";
+    document.getElementById("input-ayat").value = "";
+    if (!name) { box.hidden = true; return; }
+    var entries = entriesFor(slugify(name));
+    if (!entries.length) { box.hidden = true; return; }
+    box.hidden = false;
+    box.innerHTML = '<div class="history-label">Riwayat terakhir</div>' +
+      entries.slice(0, 3).map(function (e) {
+        return '<div class="history-row"><span class="history-date mono">' + e.tanggal + '</span><span>' +
+          JENIS_LABEL[e.jenis] + " &middot; Juz " + (e.juz || "?") + (e.surah ? " " + escapeHtml(e.surah) : "") + (e.ayat ? " : " + escapeHtml(e.ayat) : "") +
+          "</span></div>";
+      }).join("");
+    var latest = entries[0];
+    document.getElementById("input-juz").value = latest.juz || "";
+    document.getElementById("input-surah").value = latest.surah || "";
+    document.getElementById("input-ayat").value = latest.ayat || "";
+  }
   document.getElementById("input-nama-select").addEventListener("change", function () {
     var isNew = this.value === "__new__";
     var newField = document.getElementById("input-nama-baru-field");
     newField.hidden = !isNew;
     if (isNew) document.getElementById("input-nama-baru").focus();
+    renderInputHistory(isNew ? "" : this.value);
   });
 
   function rerenderAll() {
@@ -658,7 +793,7 @@
     var map = {};
     snap.docs.forEach(function (d) {
       var data = d.data();
-      if (data) map[d.id] = { id: d.id, name: data.name || d.id };
+      if (data) map[d.id] = { id: d.id, name: data.name || d.id, active: data.active };
     });
     pesertaMap = map;
     rerenderAll();
@@ -669,7 +804,7 @@
       var out = Object.assign({}, d.data());
       out.id = d.id;
       return out;
-    });
+    }).filter(function (e) { return !e.deleted; });
     rerenderAll();
   }, function (err) { console.error("hafalan onSnapshot error", err); });
 
@@ -720,6 +855,7 @@
       document.getElementById("input-jenis").value = "baru";
       document.getElementById("input-status").value = "hadir";
       document.getElementById("input-nama-baru-field").hidden = true;
+      document.getElementById("input-history").hidden = true;
     } catch (e) {
       toast.hidden = false;
       toast.style.color = "var(--warn)";
