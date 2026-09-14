@@ -144,6 +144,7 @@
     -webkit-appearance: none; appearance: none;
     display: block;
   }
+  .field textarea { resize: vertical; min-height: 44px; }
   .field input:focus, .field select:focus, .field textarea:focus {
     outline: 2px solid var(--accent); outline-offset: 1px;
   }
@@ -289,6 +290,14 @@
     <h2>Catat hafalan</h2>
     <div class="hint">Untuk musyrif &mdash; isi setelah menyimak satu peserta.</div>
     <form id="hafalan-form">
+      <div class="field">
+        <label for="quick-parse-input">Isi cepat (opsional)</label>
+        <textarea id="quick-parse-input" rows="2" placeholder="cth. Fuad Adam Juz 4 Ali Imran 186"></textarea>
+        <div class="share-row" style="margin-top:2px;margin-bottom:0;">
+          <button type="button" class="link-btn" id="quick-parse-btn">Coba baca otomatis</button>
+          <span class="muted" id="quick-parse-status" style="font-size:.78rem;"></span>
+        </div>
+      </div>
       <div class="field">
         <label for="input-nama-select">Nama peserta</label>
         <div class="select-shell">
@@ -813,6 +822,94 @@
     newField.hidden = !isNew;
     if (isNew) document.getElementById("input-nama-baru").focus();
     renderInputHistory(isNew ? "" : this.value);
+  });
+
+  // ---------- quick-parse (rule-based, no AI/API) ----------
+  // Best-effort pattern matching for one-line WA-style notes, e.g.
+  // "Fuad Adam Juz 4 Ali Imran 186" or "Ottoh Hidayatullah Tes Juz 1".
+  // Always leaves the parsed fields for the musyrif to review before
+  // saving - never submits on its own.
+  function normalizeForMatch(s) {
+    return (s || "").toLowerCase().replace(/['-]/g, "").replace(/\s+/g, "");
+  }
+  function parseQuickEntry(raw) {
+    var text = (raw || "").trim();
+    var result = { nama: "", jenis: "baru", juz: null, surah: "", ayat: "", attendance: "hadir" };
+    if (!text) return result;
+
+    if (/\bizin\b/i.test(text)) result.attendance = "izin";
+
+    if (/murojaah|murajaah|muroja'ah/i.test(text)) result.jenis = "murajaah";
+    else if (/\btes\b|\btest\b/i.test(text)) result.jenis = "tes";
+
+    var juzMatch = text.match(/ju[sz]\s*(\d{1,2})/i);
+    if (juzMatch) {
+      var juzNum = parseInt(juzMatch[1], 10);
+      if (juzNum >= 1 && juzNum <= 30) result.juz = juzNum;
+    }
+
+    var normText = normalizeForMatch(text);
+    var bestSurah = "", bestLen = 0;
+    SURAH_JUZ.forEach(function (s) {
+      var normName = normalizeForMatch(s[0]);
+      if (normName.length > 2 && normText.indexOf(normName) !== -1 && normName.length > bestLen) {
+        bestSurah = s[0];
+        bestLen = normName.length;
+      }
+    });
+    result.surah = bestSurah;
+    if (!result.juz && bestSurah) result.juz = SURAH_START_JUZ[bestSurah];
+
+    var quoteMatch = text.match(/["“]([^"”]+)["”]/);
+    if (quoteMatch) {
+      result.ayat = quoteMatch[1];
+    } else {
+      var ayatMatch = text.match(/ayat\s*(\d+)/i);
+      if (ayatMatch) {
+        result.ayat = ayatMatch[1];
+      } else {
+        var nums = text.match(/\b\d{1,3}\b/g) || [];
+        var juzStr = result.juz ? String(result.juz) : null;
+        var rest = nums.filter(function (n) { return n !== juzStr; });
+        if (rest.length) result.ayat = rest[rest.length - 1];
+      }
+    }
+
+    var stopIdx = text.length;
+    [/\bjuz\b/i, /\bjus\b/i, /\btes\b/i, /\btest\b/i, /murojaah|murajaah/i, /\bizin\b/i, /\bayat\b/i].forEach(function (re) {
+      var m = re.exec(text);
+      if (m && m.index < stopIdx) stopIdx = m.index;
+    });
+    result.nama = text.slice(0, stopIdx).trim().replace(/[,.\-:;]+$/, "").trim();
+
+    return result;
+  }
+  document.getElementById("quick-parse-btn").addEventListener("click", function () {
+    var parsed = parseQuickEntry(document.getElementById("quick-parse-input").value);
+    var status = document.getElementById("quick-parse-status");
+    if (!parsed.nama) {
+      status.textContent = "Tidak terbaca, isi manual saja.";
+      return;
+    }
+
+    var namaSelect = document.getElementById("input-nama-select");
+    var options = Array.from(namaSelect.options).map(function (o) { return o.value; });
+    var target = parsed.nama.toLowerCase();
+    var matched = options.find(function (n) { return n && n !== "__new__" && n.toLowerCase() === target; }) ||
+      options.find(function (n) { return n && n !== "__new__" && (n.toLowerCase().indexOf(target) !== -1 || target.indexOf(n.toLowerCase()) !== -1); });
+
+    namaSelect.value = matched || "__new__";
+    namaSelect.dispatchEvent(new Event("change"));
+    if (!matched) document.getElementById("input-nama-baru").value = parsed.nama;
+
+    document.getElementById("input-jenis").value = parsed.jenis;
+    document.getElementById("input-status").value = parsed.attendance;
+    if (parsed.juz) document.getElementById("input-juz").value = parsed.juz;
+    if (parsed.surah) document.getElementById("input-surah").value = parsed.surah;
+    if (parsed.ayat) document.getElementById("input-ayat").value = parsed.ayat;
+
+    status.textContent = "Terisi otomatis — cek dulu sebelum simpan.";
+    setTimeout(function () { status.textContent = ""; }, 5000);
   });
 
   function rerenderAll() {
