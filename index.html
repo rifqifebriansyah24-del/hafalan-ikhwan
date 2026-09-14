@@ -138,7 +138,11 @@
   .field input, .field select, .field textarea {
     font-family: var(--font-body); font-size: .95rem; color: var(--ink);
     background: var(--paper); border: 1px solid var(--line); border-radius: 9px;
-    padding: 9px 11px; width: 100%; min-width: 0;
+    padding: 9px 11px; width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box;
+  }
+  .field input[type="date"] {
+    -webkit-appearance: none; appearance: none;
+    display: block;
   }
   .field input:focus, .field select:focus, .field textarea:focus {
     outline: 2px solid var(--accent); outline-offset: 1px;
